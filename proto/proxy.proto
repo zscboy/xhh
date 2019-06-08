@@ -1,0 +1,19 @@
+syntax = "proto2";
+
+package proxy;
+
+enum MessageCode{
+    OPInvalid = 0;  		// 无效消息码
+	OPProxyReply = 1; 		// 连接回复
+	OPData = 2; 			// 代理数据
+	OPPing = 100; 			// ping
+	OPPong = 101; 			// ping
+
+}
+
+// 消息包装，把其他消息体格式化为byte array，
+// 加上消息码构成一个AccessoryMessage，便于解析
+message ProxyMessage {
+    required int32 Ops = 1;
+    optional bytes Data = 2;
+}
