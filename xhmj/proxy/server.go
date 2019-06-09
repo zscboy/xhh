@@ -164,6 +164,7 @@ func CreateHTTPServer() {
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
 	go acceptHTTPRequest()
+	go startAliveKeeper()
 }
 
 // acceptHTTPRequest 监听和接受HTTP

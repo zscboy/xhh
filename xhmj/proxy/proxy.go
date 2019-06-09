@@ -106,6 +106,12 @@ func (ph *pairHolder) sendProxyMessage(data []byte, ops int) error {
 	return ph.send(d)
 }
 
+func (ph *pairHolder) closeWebsocket() {
+	if ph.ws != nil {
+		ph.ws.Close()
+	}
+}
+
 func (ph *pairHolder) onWebsocketClosed(ws *websocket.Conn) {
 	if ws == ph.ws {
 		// my websocket has closed
