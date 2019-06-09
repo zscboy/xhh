@@ -9,6 +9,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	packHeaderSize = 12
+	minimalSize    = 256
+	flagCompressed = 0x40
+)
+
 type packetHeader struct {
 	msg      uint16 // 消息码
 	flag     byte   // 包标志，目前用于判断包是否压缩
@@ -43,11 +49,11 @@ func (ph *pairHolder) serveTCP() {
 
 	log.Println("serveTCP for:", conn.RemoteAddr())
 
-	buf := make([]byte, 256)
+	buf := make([]byte, minimalSize)
 
 	for {
 		// read packet header
-		err := ph.readRequiredBytes(buf, 12)
+		err := ph.readRequiredBytes(buf, packHeaderSize)
 		if err != nil {
 			log.Println("serveTCP read packet header failed:", err)
 			break
@@ -70,7 +76,7 @@ func (ph *pairHolder) serveTCP() {
 		msg32 := int(header.msg)
 		data := buf[0:header.size]
 
-		if (header.flag & 1) != 0x40 {
+		if (header.flag & flagCompressed) != 0 {
 			// compressed packet, need uncompressed first
 			log.Println("serveTCP got compressed packet, decompress ...")
 			data, err = zlibDecompress(data)
@@ -81,6 +87,7 @@ func (ph *pairHolder) serveTCP() {
 			}
 		}
 
+		// msg32 left shift 8 bit
 		err = ph.sendProxyMessage(data, msg32<<8)
 
 		if err != nil {
