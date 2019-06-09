@@ -1,6 +1,8 @@
 package proxy
 
 import (
+	"errors"
+	"gscfg"
 	"net"
 	"sync"
 	"time"
@@ -12,12 +14,13 @@ import (
 
 const (
 	websocketWriteDeadLine = 5 * time.Second
+	tcpWriteDeadLine       = 5 * time.Second
 )
 
 // pairHolder hold websocket and tcp pair
 type pairHolder struct {
 	ws      *websocket.Conn
-	tcpSock *net.TCPConn
+	tcpConn *net.TCPConn
 
 	lastReceivedTime time.Time
 	lastPingTime     time.Time
@@ -73,18 +76,99 @@ func (ph *pairHolder) sendPing() {
 		}
 
 		if err != nil {
-			log.Printf("user %s ws write err:", err)
+			log.Println("pair holder  ws write err:", err)
 			ws.Close()
 		}
 	}
 }
 
-func (ph *pairHolder) onWebsocketClosed(ws *websocket.Conn) {
+func (ph *pairHolder) send(bytes []byte) error {
+	ws := ph.ws
+	if ws != nil {
+		ph.wsLock.Lock()
+		defer ph.wsLock.Unlock()
 
+		ws.SetWriteDeadline(time.Now().Add(websocketWriteDeadLine))
+		err := ws.WriteMessage(websocket.BinaryMessage, bytes)
+		if err != nil {
+			ws.Close()
+			log.Println("pair holder ws write err:", err)
+		}
+
+		return err
+	}
+
+	return errors.New("websocket is nil")
+}
+
+func (ph *pairHolder) sendProxyMessage(data []byte, ops int) error {
+	d := formatProxyMsgByData(data, int32(ops))
+	return ph.send(d)
+}
+
+func (ph *pairHolder) onWebsocketClosed(ws *websocket.Conn) {
+	if ws == ph.ws {
+		// my websocket has closed
+		ph.ws = nil
+
+		tcpConn := ph.tcpConn
+		if tcpConn != nil {
+			tcpConn.Close()
+		}
+	}
+}
+
+func (ph *pairHolder) onTCPConnClosed(tcpConn *net.TCPConn) {
+	if tcpConn == ph.tcpConn {
+		// my tcp conn has closed
+		ph.tcpConn = nil
+
+		ws := ph.ws
+		if ws != nil {
+			ws.Close()
+		}
+	}
 }
 
 func (ph *pairHolder) onWebsocketMessage(ws *websocket.Conn, message []byte) {
+	tcpConn := ph.tcpConn
+	if tcpConn != nil {
+		tcpConn.SetWriteDeadline(time.Now().Add(tcpWriteDeadLine))
+		wrote, err := tcpConn.Write(message)
 
+		if err != nil {
+			log.Println("pair holder onWebsocketMessage write tcp failed:", err)
+		}
+
+		if wrote < len(message) {
+			log.Printf("pair holder onWebsocketMessage write tcp, wrote:%d != expected:%d", wrote, len(message))
+		}
+	}
+}
+
+func (ph *pairHolder) proxyStart() error {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", gscfg.TCPServer)
+	if err != nil {
+		log.Println("pair holder ResolveTCPAddr failed:", err)
+
+		return err
+	}
+
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil {
+		// handle error
+		log.Println("pair holder dial to tcp server failed:", err)
+
+		return err
+	}
+
+	ph.tcpConn = conn
+
+	ph.tcpConn.SetNoDelay(true)
+
+	go ph.serveTCP()
+
+	return nil
 }
 
 func formatProxyMsgByData(data []byte, ops int32) []byte {

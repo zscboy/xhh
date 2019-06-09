@@ -22,6 +22,8 @@ var (
 	EtcdServer           = ""
 	RoomServerID         = ""
 
+	TCPServer = ""
+
 	DbIP       = "localhost"
 	DbPort     = 1433
 	DbUser     = "abc"
