@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"io/ioutil"
 
+	proto "github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -124,4 +125,46 @@ func zlibDecompress(data []byte) ([]byte, error) {
 	}
 
 	return ioutil.ReadAll(r)
+}
+
+func wsMessage2TcpMessage(wsMessage []byte) ([]byte, error) {
+	gmsg := &ProxyMessage{}
+	err := proto.Unmarshal(wsMessage, gmsg)
+
+	if err != nil {
+		return nil, err
+	}
+
+	wsData := gmsg.GetData()
+	wsDataLength := len(wsData)
+	data := make([]byte, packHeaderSize+wsDataLength)
+	if wsDataLength > 0 {
+		copy(data[12:], gmsg.GetData())
+	}
+
+	binary.LittleEndian.PutUint16(data, uint16(gmsg.GetOps()>>8)) // msg code
+	data[2] = 0                                                   // flag none
+	data[3] = 0                                                   // uncompressed
+
+	binary.LittleEndian.PutUint32(data[4:], uint32(wsDataLength)) // size
+
+	hash := calcHash(wsData)
+	binary.LittleEndian.PutUint32(data[8:], uint32(hash)) // hash
+
+	return data, nil
+}
+
+func calcHash(data []byte) uint32 {
+	// 以下代码是copy自南京项目组的pb.cpp文件中的calchash函数
+	var hash uint32
+	for _, b := range data {
+		hash = (hash << 4) + uint32(b)
+		tmp := (hash & 0xf0000000)
+		if tmp != 0 {
+			hash = hash ^ (tmp >> 24)
+			hash = hash ^ tmp
+		}
+	}
+
+	return hash
 }

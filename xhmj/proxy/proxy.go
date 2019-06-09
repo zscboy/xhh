@@ -133,11 +133,18 @@ func (ph *pairHolder) onTCPConnClosed(tcpConn *net.TCPConn) {
 func (ph *pairHolder) onWebsocketMessage(ws *websocket.Conn, message []byte) {
 	tcpConn := ph.tcpConn
 	if tcpConn != nil {
+		data, err := wsMessage2TcpMessage(message)
+		if err != nil {
+			log.Println("pair holder onWebsocketMessage wsMessage2TcpMessage failed:", err)
+			return
+		}
+
 		tcpConn.SetWriteDeadline(time.Now().Add(tcpWriteDeadLine))
-		wrote, err := tcpConn.Write(message)
+		wrote, err := tcpConn.Write(data)
 
 		if err != nil {
 			log.Println("pair holder onWebsocketMessage write tcp failed:", err)
+			return
 		}
 
 		if wrote < len(message) {
