@@ -125,6 +125,7 @@ func tryAcceptGameUser(ws *websocket.Conn, r *http.Request) {
 	}()
 
 	incrOnlinePlayerNum()
+	holder.lastReceivedTime = time.Now()
 
 	go holder.proxyStart()
 	waitWebsocketMessage(holder, r)
@@ -155,7 +156,7 @@ func acceptWebsocket(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 	}
 }
 
-func regForwardHandlers() {
+func registerForwardHandlers() {
 	rootRouter.Handle("POST", "/t9user/Login", forwardHTTPHandle)
 }
 
@@ -174,7 +175,8 @@ func CreateHTTPServer() {
 
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
-	regForwardHandlers()
+	registerForwardHandlers()
+	redisStartup()
 
 	go acceptHTTPRequest()
 	go startAliveKeeper()

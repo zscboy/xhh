@@ -22,7 +22,7 @@ func newPool(addr string) *redis.Pool {
 	}
 }
 
-func startup() {
+func redisStartup() {
 	if gscfg.ServerID == "" {
 		log.Panic("Must specify the server ID in config json")
 		return

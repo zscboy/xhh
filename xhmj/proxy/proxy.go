@@ -38,6 +38,7 @@ func newPairHolder(ws *websocket.Conn, isFromWeb bool, targetAddr string) *pairH
 	hodler.ws = ws
 	hodler.isFromWeb = isFromWeb
 	hodler.targetAddr = targetAddr
+	hodler.wsLock = &sync.Mutex{}
 
 	return hodler
 }
@@ -141,22 +142,34 @@ func (ph *pairHolder) onTCPConnClosed(tcpConn *net.TCPConn) {
 func (ph *pairHolder) onWebsocketMessage(ws *websocket.Conn, message []byte) {
 	tcpConn := ph.tcpConn
 	if tcpConn != nil {
-		data, err := wsMessage2TcpMessage(message)
+		gmsg := &ProxyMessage{}
+		err := proto.Unmarshal(message, gmsg)
+
 		if err != nil {
-			log.Println("pair holder onWebsocketMessage wsMessage2TcpMessage failed:", err)
+			log.Println("websocket message decode failed:", err)
 			return
 		}
 
-		tcpConn.SetWriteDeadline(time.Now().Add(tcpWriteDeadLine))
-		wrote, err := tcpConn.Write(data)
-
-		if err != nil {
-			log.Println("pair holder onWebsocketMessage write tcp failed:", err)
+		ops := gmsg.GetOps()
+		if ops > 255 {
+			sendTCPMessage(gmsg, tcpConn)
 			return
 		}
 
-		if wrote < len(message) {
-			log.Printf("pair holder onWebsocketMessage write tcp, wrote:%d != expected:%d", wrote, len(message))
+		switch ops {
+		case int32(MessageCode_OPPing):
+			xd := gmsg.GetData()
+			// log.Println("got ping, len:", len(xd))
+			// bits := binary.LittleEndian.Uint64(xd)
+			// float := math.Float64frombits(bits)
+			buf := formatProxyMsgByData(xd, int32(MessageCode_OPPong))
+			ph.send(buf)
+			break
+		case int32(MessageCode_OPPong):
+			// log.Println("got pong")
+			break
+		default:
+			log.Println("onWebsocketMessage, unknown ops:", ops)
 		}
 	}
 }

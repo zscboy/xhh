@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
+	"errors"
 	"io/ioutil"
+	"net"
+	"time"
 
-	proto "github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -36,6 +38,11 @@ func (ph *pairHolder) readRequiredBytes(buf []byte, requiredSize int) error {
 	if err != nil {
 		log.Printf("serveTCP read error:%v, addr:%v", err, conn.RemoteAddr())
 		return err
+	}
+
+	if read != requiredSize {
+		log.Printf("serveTCP read error, ret:%d != required:%d", read, requiredSize)
+		return errors.New("ret not equal required")
 	}
 
 	return nil
@@ -117,6 +124,27 @@ func (ph *pairHolder) decodeHeader(buf []byte) *packetHeader {
 	return pheader
 }
 
+func sendTCPMessage(gmsg *ProxyMessage, tcpConn *net.TCPConn) {
+	data, err := wsMessage2TcpMessage(gmsg)
+	if err != nil {
+		log.Println("pair holder onWebsocketMessage wsMessage2TcpMessage failed:", err)
+		return
+	}
+
+	tcpConn.SetWriteDeadline(time.Now().Add(tcpWriteDeadLine))
+	log.Printf("onWebsocketMessage, write %d to tcp", len(data))
+	wrote, err := tcpConn.Write(data)
+
+	if err != nil {
+		log.Println("pair holder onWebsocketMessage write tcp failed:", err)
+		return
+	}
+
+	if wrote < len(data) {
+		log.Printf("pair holder onWebsocketMessage write tcp, wrote:%d != expected:%d", wrote, len(data))
+	}
+}
+
 func zlibDecompress(data []byte) ([]byte, error) {
 	b := bytes.NewReader(data)
 	r, err := zlib.NewReader(b)
@@ -127,14 +155,7 @@ func zlibDecompress(data []byte) ([]byte, error) {
 	return ioutil.ReadAll(r)
 }
 
-func wsMessage2TcpMessage(wsMessage []byte) ([]byte, error) {
-	gmsg := &ProxyMessage{}
-	err := proto.Unmarshal(wsMessage, gmsg)
-
-	if err != nil {
-		return nil, err
-	}
-
+func wsMessage2TcpMessage(gmsg *ProxyMessage) ([]byte, error) {
 	wsData := gmsg.GetData()
 	wsDataLength := len(wsData)
 	data := make([]byte, packHeaderSize+wsDataLength)
