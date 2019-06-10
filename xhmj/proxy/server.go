@@ -10,10 +10,11 @@ import (
 	"path"
 	"time"
 
+	"container/list"
+
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
-
-	"container/list"
+	"github.com/rs/cors"
 )
 
 const (
@@ -109,8 +110,12 @@ func waitWebsocketMessage(holder *pairHolder, r *http.Request) {
 
 // tryAcceptGameUser 游戏玩家接入
 func tryAcceptGameUser(ws *websocket.Conn, r *http.Request) {
-	isFromWeb := r.URL.Query().Get("web") == "1"
-	holder := newPairHolder(ws, isFromWeb)
+	query := r.URL.Query()
+	isFromWeb := query.Get("web") == "1"
+	target := query.Get("target")
+	log.Println("tryAcceptGameUser, target:", target)
+
+	holder := newPairHolder(ws, isFromWeb, target)
 
 	e := pairHolderList.PushBack(holder)
 
@@ -120,6 +125,8 @@ func tryAcceptGameUser(ws *websocket.Conn, r *http.Request) {
 	}()
 
 	incrOnlinePlayerNum()
+
+	go holder.proxyStart()
 	waitWebsocketMessage(holder, r)
 }
 
@@ -148,6 +155,10 @@ func acceptWebsocket(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 	}
 }
 
+func regForwardHandlers() {
+	rootRouter.Handle("POST", "/t9user/Login", forwardHTTPHandle)
+}
+
 // CreateHTTPServer 启动服务器
 func CreateHTTPServer() {
 	log.Printf("CreateHTTPServer")
@@ -163,16 +174,24 @@ func CreateHTTPServer() {
 
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
+	regForwardHandlers()
+
 	go acceptHTTPRequest()
 	go startAliveKeeper()
 }
 
 // acceptHTTPRequest 监听和接受HTTP
 func acceptHTTPRequest() {
+	c := cors.New(cors.Options{
+		AllowOriginFunc: func(origin string) bool {
+			return true
+		},
+	})
+
 	portStr := fmt.Sprintf(":%d", gscfg.ServerPort)
 	s := &http.Server{
 		Addr:    portStr,
-		Handler: rootRouter,
+		Handler: c.Handler(rootRouter),
 		// ReadTimeout:    10 * time.Second,
 		//WriteTimeout:   120 * time.Second,
 		MaxHeaderBytes: 1 << 8,

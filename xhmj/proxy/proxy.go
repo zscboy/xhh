@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"errors"
-	"gscfg"
 	"net"
 	"sync"
 	"time"
@@ -30,12 +29,15 @@ type pairHolder struct {
 	// 如果是浏览器，其websocket没有原生的ping/pong
 	// 需要自定义ping pong实现
 	isFromWeb bool
+
+	targetAddr string
 }
 
-func newPairHolder(ws *websocket.Conn, isFromWeb bool) *pairHolder {
+func newPairHolder(ws *websocket.Conn, isFromWeb bool, targetAddr string) *pairHolder {
 	hodler := &pairHolder{}
 	hodler.ws = ws
 	hodler.isFromWeb = isFromWeb
+	hodler.targetAddr = targetAddr
 
 	return hodler
 }
@@ -160,7 +162,7 @@ func (ph *pairHolder) onWebsocketMessage(ws *websocket.Conn, message []byte) {
 }
 
 func (ph *pairHolder) proxyStart() error {
-	tcpAddr, err := net.ResolveTCPAddr("tcp", gscfg.TCPServer)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", ph.targetAddr)
 	if err != nil {
 		log.Println("pair holder ResolveTCPAddr failed:", err)
 
