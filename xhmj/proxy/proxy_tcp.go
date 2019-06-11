@@ -101,7 +101,7 @@ func (ph *pairHolder) serveTCP() {
 			}
 
 			if len(data) > 2048 {
-				log.Printf("WARING, packet decompressed size too large:%d, before:%d", len(data), len(before))
+				log.Printf("WARNING, packet decompressed size too large:%d, before:%d", len(data), len(before))
 			}
 		}
 

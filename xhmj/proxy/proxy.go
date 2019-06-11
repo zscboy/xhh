@@ -120,6 +120,7 @@ func (ph *pairHolder) onWebsocketClosed(ws *websocket.Conn) {
 		// my websocket has closed
 		ph.ws = nil
 
+		// try to close tcp
 		tcpConn := ph.tcpConn
 		if tcpConn != nil {
 			tcpConn.Close()
@@ -132,6 +133,7 @@ func (ph *pairHolder) onTCPConnClosed(tcpConn *net.TCPConn) {
 		// my tcp conn has closed
 		ph.tcpConn = nil
 
+		// try to close websocket
 		ws := ph.ws
 		if ws != nil {
 			ws.Close()
@@ -160,8 +162,6 @@ func (ph *pairHolder) onWebsocketMessage(ws *websocket.Conn, message []byte) {
 		case int32(MessageCode_OPPing):
 			xd := gmsg.GetData()
 			// log.Println("got ping, len:", len(xd))
-			// bits := binary.LittleEndian.Uint64(xd)
-			// float := math.Float64frombits(bits)
 			buf := formatProxyMsgByData(xd, int32(MessageCode_OPPong))
 			ph.send(buf)
 			break
