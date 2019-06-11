@@ -5,11 +5,11 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 	"errors"
+	log "github.com/sirupsen/logrus"
+	"io"
 	"io/ioutil"
 	"net"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -28,7 +28,7 @@ type packetHeader struct {
 
 func (ph *pairHolder) readRequiredBytes(buf []byte, requiredSize int) error {
 	conn := ph.tcpConn
-	read, err := conn.Read(buf[0:requiredSize])
+	read, err := io.ReadFull(conn, buf[0:requiredSize])
 	if read == 0 {
 		// pear shudown, get a FIN package
 		log.Println("serveTCP, tcp server finished connection")
@@ -92,11 +92,16 @@ func (ph *pairHolder) serveTCP() {
 		if (header.flag & flagCompressed) != 0 {
 			// compressed packet, need uncompressed first
 			log.Println("serveTCP got compressed packet, decompress ...")
-			data, err = zlibDecompress(data)
+			before := data
+			data, err = gzipDecompress(data)
 
 			if err != nil {
 				log.Println("serveTCP decompress failed:", err)
 				break
+			}
+
+			if len(data) > 2048 {
+				log.Printf("WARING, packet decompressed size too large:%d, before:%d", len(data), len(before))
 			}
 		}
 
@@ -151,7 +156,7 @@ func sendTCPMessage(gmsg *ProxyMessage, tcpConn *net.TCPConn) {
 	log.Println("sendTCPMessage, length:", wrote)
 }
 
-func zlibDecompress(data []byte) ([]byte, error) {
+func gzipDecompress(data []byte) ([]byte, error) {
 	b := bytes.NewReader(data)
 	r, err := gzip.NewReader(b)
 	if err != nil {
