@@ -2,7 +2,7 @@ package proxy
 
 import (
 	"bytes"
-	"compress/zlib"
+	"compress/gzip"
 	"encoding/binary"
 	"errors"
 	"io/ioutil"
@@ -28,7 +28,7 @@ type packetHeader struct {
 
 func (ph *pairHolder) readRequiredBytes(buf []byte, requiredSize int) error {
 	conn := ph.tcpConn
-	read, err := conn.Read(buf)
+	read, err := conn.Read(buf[0:requiredSize])
 	if read == 0 {
 		// pear shudown, get a FIN package
 		log.Println("serveTCP, tcp server finished connection")
@@ -83,6 +83,11 @@ func (ph *pairHolder) serveTCP() {
 		// send to websocket
 		msg32 := int(header.msg)
 		data := buf[0:header.size]
+		hash := calcHash(data)
+		if header.hash != hash {
+			log.Printf("serveTCP hash not match, header hash:%d, calc:%d\n", header, hash)
+			break
+		}
 
 		if (header.flag & flagCompressed) != 0 {
 			// compressed packet, need uncompressed first
@@ -113,14 +118,13 @@ func (ph *pairHolder) decodeHeader(buf []byte) *packetHeader {
 	compress := buf[3]
 	sizeU32 := binary.LittleEndian.Uint32(buf[4:])
 	hashU32 := binary.LittleEndian.Uint32(buf[8:])
-
 	pheader.msg = msgU16
 	pheader.flag = flag
 	pheader.compress = compress
 	pheader.size = sizeU32
 	pheader.hash = hashU32
-
 	log.Printf("decodeHeader, header:%v", pheader)
+
 	return pheader
 }
 
@@ -143,11 +147,13 @@ func sendTCPMessage(gmsg *ProxyMessage, tcpConn *net.TCPConn) {
 	if wrote < len(data) {
 		log.Printf("pair holder onWebsocketMessage write tcp, wrote:%d != expected:%d", wrote, len(data))
 	}
+
+	log.Println("sendTCPMessage, length:", wrote)
 }
 
 func zlibDecompress(data []byte) ([]byte, error) {
 	b := bytes.NewReader(data)
-	r, err := zlib.NewReader(b)
+	r, err := gzip.NewReader(b)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +169,8 @@ func wsMessage2TcpMessage(gmsg *ProxyMessage) ([]byte, error) {
 		copy(data[12:], gmsg.GetData())
 	}
 
-	binary.LittleEndian.PutUint16(data, uint16(gmsg.GetOps()>>8)) // msg code
+	log.Println("wsMessage2TcpMessage, ops:", gmsg.GetOps()>>8)
+	binary.LittleEndian.PutUint16(data, uint16(gmsg.GetOps()>>8)) // msg code, right shift 8 bits
 	data[2] = 0                                                   // flag none
 	data[3] = 0                                                   // uncompressed
 

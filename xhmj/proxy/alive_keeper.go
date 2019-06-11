@@ -27,6 +27,7 @@ func doAliveKeep() {
 		// 每间隔keeperAwakeTime唤醒一次，唤醒后检查usersMap中的websocket
 		// 最后一个消息的接收时间
 		time.Sleep(keeperAwakeTime)
+
 		now := time.Now()
 		// 如果时间大于90s，则认为客户端已经断开，直接关闭websocket
 		for e := pairHolderList.Front(); e != nil; e = e.Next() {
