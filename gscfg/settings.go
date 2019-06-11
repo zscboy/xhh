@@ -22,12 +22,13 @@ var (
 	EtcdServer           = ""
 	RoomServerID         = ""
 
-	DbIP       = "localhost"
-	DbPort     = 1433
-	DbUser     = "abc"
-	DbPassword = "ab"
-	DbName     = "gamedb"
-
+	DbIP         = "localhost"
+	DbPort       = 1433
+	DbUser       = "abc"
+	DbPassword   = "ab"
+	DbName       = "gamedb"
+	ProxyTarget  = "testyy.5206767.net"
+	ProxyScheme  = "http"
 	RoomTypeName string
 )
 
@@ -87,6 +88,9 @@ func ParseConfigFile(filepath string) bool {
 		DbUser     string `json:"dbUser"`
 		DbName     string `json:"dbName"`
 
+		ProxyTarget string `json:"proxyTarget"`
+		ProxyScheme string `json:"proxyScheme"`
+
 		RoomTypeName string `json:"roomTypeName"`
 	}
 
@@ -130,6 +134,14 @@ func ParseConfigFile(filepath string) bool {
 
 	if params.ServreID != "" {
 		ServerID = params.ServreID
+	}
+
+	if params.ProxyTarget != "" {
+		ProxyTarget = params.ProxyTarget
+	}
+
+	if params.ProxyScheme != "" {
+		ProxyScheme = params.ProxyScheme
 	}
 
 	// if params.URL != "" {

@@ -3,18 +3,13 @@ package proxy
 import (
 	"bytes"
 	"fmt"
+	"github.com/julienschmidt/httprouter"
+	log "github.com/sirupsen/logrus"
+	"gscfg"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
-
-	"github.com/julienschmidt/httprouter"
-	log "github.com/sirupsen/logrus"
-)
-
-const (
-	targetHost  = "testyy.5206767.net"
-	proxyScheme = "http"
 )
 
 // forwardHTTPHandle testyy.5206767.net
@@ -33,7 +28,7 @@ func forwardHTTPHandle(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	req.Body = ioutil.NopCloser(bytes.NewReader(body))
 
 	// create a new url from the raw RequestURI sent by the client
-	url := fmt.Sprintf("%s://%s%s", proxyScheme, targetHost, req.RequestURI)
+	url := fmt.Sprintf("%s://%s%s", gscfg.ProxyScheme, gscfg.ProxyTarget, req.RequestURI)
 
 	proxyReq, err := http.NewRequest(req.Method, url, bytes.NewReader(body))
 
