@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"runtime/debug"
 	"time"
 )
 
@@ -51,6 +52,11 @@ func (ph *pairHolder) readRequiredBytes(buf []byte, requiredSize int) error {
 func (ph *pairHolder) serveTCP() {
 	conn := ph.tcpConn
 	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			log.Printf("-----This serveTCP GR will die, Recovered in serveTCP:%v\n", r)
+		}
+
 		conn.Close()
 		ph.onTCPConnClosed(conn)
 	}()
