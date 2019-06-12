@@ -177,13 +177,14 @@ func wsMessage2TcpMessage(gmsg *ProxyMessage) ([]byte, error) {
 	wsDataLength := len(wsData)
 	data := make([]byte, packHeaderSize+wsDataLength)
 	if wsDataLength > 0 {
-		copy(data[12:], gmsg.GetData())
+		copy(data[12:], wsData)
 	}
 
-	log.Println("wsMessage2TcpMessage, ops:", gmsg.GetOps()>>8)
-	binary.LittleEndian.PutUint16(data, uint16(gmsg.GetOps()>>8)) // msg code, right shift 8 bits
-	data[2] = 0                                                   // flag none
-	data[3] = 0                                                   // uncompressed
+	gameOPs := uint16(gmsg.GetOps() >> 8)
+	log.Println("wsMessage2TcpMessage, ops:", gameOPs)
+	binary.LittleEndian.PutUint16(data, uint16(gameOPs)) // msg code, right shift 8 bits
+	data[2] = 0                                          // flag none
+	data[3] = 0                                          // uncompressed
 
 	binary.LittleEndian.PutUint32(data[4:], uint32(wsDataLength)) // size
 
