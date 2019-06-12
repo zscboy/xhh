@@ -147,7 +147,7 @@ func sendTCPMessage(gmsg *ProxyMessage, tcpConn *net.TCPConn) {
 	}
 
 	tcpConn.SetWriteDeadline(time.Now().Add(tcpWriteDeadLine))
-	log.Printf("onWebsocketMessage, write %d to tcp", len(data))
+	log.Printf("onWebsocketMessage, write %d bytes to tcp", len(data))
 	wrote, err := tcpConn.Write(data)
 
 	if err != nil {
@@ -159,7 +159,7 @@ func sendTCPMessage(gmsg *ProxyMessage, tcpConn *net.TCPConn) {
 		log.Printf("pair holder onWebsocketMessage write tcp, wrote:%d != expected:%d", wrote, len(data))
 	}
 
-	log.Println("sendTCPMessage, length:", wrote)
+	log.Println("sendTCPMessage completed, length in byte:", wrote)
 }
 
 func gzipDecompress(data []byte) ([]byte, error) {
