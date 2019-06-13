@@ -126,7 +126,11 @@ func tryAcceptGameUser(ws *websocket.Conn, r *http.Request) {
 
 	incrOnlinePlayerNum()
 	holder.lastReceivedTime = time.Now()
-	holder.proxyStart()
+	err := holder.proxyStart()
+	if err != nil {
+		log.Println("holder.proxyStart failed:", err)
+		return
+	}
 
 	waitWebsocketMessage(holder, r)
 }
