@@ -181,7 +181,7 @@ func wsMessage2TcpMessage(gmsg *ProxyMessage) ([]byte, error) {
 	}
 
 	gameOPs := uint16(gmsg.GetOps() >> 8)
-	log.Println("wsMessage2TcpMessage, ops:", gameOPs)
+
 	binary.LittleEndian.PutUint16(data, uint16(gameOPs)) // msg code, right shift 8 bits
 	data[2] = 0                                          // flag none
 	data[3] = 0                                          // uncompressed
@@ -190,6 +190,8 @@ func wsMessage2TcpMessage(gmsg *ProxyMessage) ([]byte, error) {
 
 	hash := calcHash(wsData)
 	binary.LittleEndian.PutUint32(data[8:], uint32(hash)) // hash
+
+	log.Printf("wsMessage2TcpMessage, ops:%d, hash:%d", gameOPs, hash)
 
 	return data, nil
 }
