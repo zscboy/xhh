@@ -1,14 +1,14 @@
 package proxy
 
 import (
+	"encoding/binary"
 	"errors"
-	"net"
-	"sync"
-	"time"
-
 	proto "github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	"net"
+	"sync"
+	"time"
 )
 
 const (
@@ -72,7 +72,9 @@ func (ph *pairHolder) sendPing() {
 
 		var err error
 		if ph.isFromWeb {
-			buf := formatProxyMsgByData([]byte("ka"), int32(MessageCode_OPPing))
+			buf2 := make([]byte, 8)
+			binary.LittleEndian.PutUint64(buf2, uint64(time.Now().Unix()))
+			buf := formatProxyMsgByData(buf2, int32(MessageCode_OPPing))
 			ws.WriteMessage(websocket.BinaryMessage, buf)
 		} else {
 			err = ws.WriteMessage(websocket.PingMessage, []byte("ka"))
