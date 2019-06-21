@@ -27,7 +27,7 @@ var (
 	DbUser       = "abc"
 	DbPassword   = "ab"
 	DbName       = "gamedb"
-	ProxyTarget  = "testyy.5206767.net"
+	ProxyTarget  = "test.5206767.net"
 	ProxyScheme  = "http"
 	RoomTypeName string
 )
